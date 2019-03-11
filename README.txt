@@ -1,3 +1,12 @@
+Self-Orgnization Maps(SOM)
+
+1.ANN 
+    two layers, competition-cooperation, spatial similarity
+  learning rate: from one to zero
+  the size of grid: large enough to classify
+  neighborhood radius: half of grid
+
+Algorithm£º
 '''
     1.SOM(2D)
     2.Preprocess
