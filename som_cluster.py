@@ -1,69 +1,5 @@
 #!/usr/bin/python
 #--- coding:utf-8
-'''
-    1.SOM(2D)
-    2.Preprocess
-    3.Merging
-    4.Optimal
-
-1.SOM
-    input: X shape(N, D)
-    output: W shape(a, b, D)
-    Normaliza(X)
-    Initial(W)
-    for num_iter in max_iter:
-        for x in X:
-            for w in W:
-                calculate_distance(x, w)
-            get_win_neuron()
-            update_W(num_iter, learning_rate, radius)
-        if ||W - W_old|| < threshold:
-            break
-    add_label_to_X
-    add_num_to_W
-
-2.Preprocessing
-    for w in W_1:
-        mean = mean(x) #x belong to w 
-        dev.append(||w - mean||)
-    mean_dev = np.mean(dev)
-    std_dev = np.std(dev)
-    for i in len(W_1):
-        if dev[i] > mean_dev+std_dev:
-            change W_num[i] to 0
-
-    for k in len(W_2):
-        dis=[]
-        for i in W_num:
-            dis.append(||X[i] - w||)
-        mean_dis[k] = np.mean(dis)
-        std_dis[k] = np.std(dis)
-        for i in W_num:
-            if dis[i] > mean_dis[k]+std_dis[k]:
-                delete X[i]
-
-    mean_num = np.mean(W_2[:,:,0])
-    std_num  = np.std(W_2[:,:,1])
-    for w in W_2:
-        if w[0] < mean_num - std_num:
-            change w[0] to 0
-
-3.CDbw
-    for i in range(c):
-        std_ev_p[i] = np.sqrt(np.sum(np.power((x_k-mean[i]),2)/(W_num[i]-1)))
-    std_ev = np.sqrt(np.sum(np.linalg.norm(std_ev_p)/c))
-
-    #intra_distance
-    for i in range(c):
-        for x in X[i]:
-            if np.linalg.norm(x-w[i]) < std_ev:
-                temp += 1
-    intra_den = temp/c
-
-    #inter_distance
-    for i in range(c):       
-
-'''
 
 import time
 import sys
@@ -73,19 +9,22 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 class SOM():
-    def __init__(self, in_layer, out_size=(3,3), m_iter=1000):
+    def __init__(self, in_layer, s, out_size=(3,3), m_iter=1000):
         self.in_layer = in_layer.copy()
         self.m_iter = m_iter
         self.w = np.random.rand(out_size[0], out_size[1], self.in_layer.shape[1])
         self.label = []
         self.res =[]
+        self.neuron = {}
+        self.l = 0 
+        self.s = s
         
     def Normaliza_Input(self, X):
         '''
         for i in range(X.shape[0]):
             t = np.linalg.norm(X[i])
             X[i] /= t
-        '''
+        #'''
         return X
 
     def Normaliza_W(self, w):
@@ -94,7 +33,7 @@ class SOM():
             for j in range(w.shape[1]):
                 t = np.linalg.norm(w[i,j])
                 w[i,j] /= t
-        '''
+        #'''
         return w
     
     def Get_Win_Neuron(self, x):
@@ -112,54 +51,75 @@ class SOM():
         res = []
         for i in range(self.w.shape[0]):
             for j in range(self.w.shape[1]):
-                dis = np.linalg.norm([i-win[0], j-win[1]])
-                if dis < radius:
+                dis = (np.linalg.norm([i-win[0], j-win[1]]))
+                if dis <= radius:
                     res.append([i, j, dis])
         #print res
         return res
         #return [[win[0], win[1], 0]]
 
-    def Update_W(self, index, time, X):
+    def Update_W(self, index, time, X, r):
         for i in range(len(index)):
-            self.w[index[i][0],index[i][1]] += self.Learning_Rate(index[i][2], time)*(X-self.w[index[i][0],index[i][1]])
+            self.w[index[i][0],index[i][1]] += self.Learning_Rate(index[i][2], time, r)*(X-self.w[index[i][0],index[i][1]])
 
     def Radius(self, t):
-        return 2*(1-t/self.m_iter)
+        #return 2*(1-t/self.m_iter)
         #return self.w.shape[0]*(1-t/self.m_iter)
+        return int(self.w.shape[0]*(1-float(t)/self.m_iter)/2)+1
 
-    def Learning_Rate(self, dis, time):
-        return np.exp(-dis)/(time+2)
+    def Learning_Rate(self, dis, time, r):
+        #return np.exp(-dis)/(time+2)
+        #self.l = 0.6*(1-float(time)/self.m_iter)*np.exp(-float(dis)/r)
+        #print time, self.m_iter,dis, r, self.l
+        self.l = 0.6*np.exp(1/(time-self.m_iter))*np.exp(-float(dis)/r)
+        return self.l
 
     def Get_Result(self):
         self.w = self.Normaliza_W(self.w)
         #print self.w
+        self.neuron={}
         for i in range(self.in_layer.shape[0]):
             win = self.Get_Win_Neuron(self.in_layer[i])
             key = win[0]*self.w.shape[0] + win[1]
             self.label.append(key)
-        '''
-        print key,i
-        if label.has_key(key):
-            label[key].append(i)
-        else:
-            label.fromkeys([key])
-            label[key]=[]
-            label[key].append(i)
-        '''
+        
+            if self.neuron.has_key(key):
+                self.neuron[key].append(i)
+            else:
+                self.neuron.fromkeys([key])
+                self.neuron[key]=[]
+                self.neuron[key].append(i)
+        #print self.neuron
         
     def Train(self, learning_rate=1, threshold=1):
         self.in_layer = self.Normaliza_Input(self.in_layer)
         #print self.in_layer
         for i in range(self.m_iter):
+            if i%50 == 0 and i >0: 
+                print 'iteration:', i
+                '''
+                color = ['y', 'r', 'g', 'b']
+                self.Get_Result()
+                for key in self.neuron.keys():
+                    k, j = key / self.w.shape[0], key % self.w.shape[0]
+                    plt.scatter(k, j, c=color[int(self.s[self.neuron[key][0]])])
+                    #print dataset[res[key][0], 2]
+                    plt.savefig('2D-25-'+str(i))
+                plt.close()
+                '''
+            #print self.l
             self.w = self.Normaliza_W(self.w)
             #print self.w
-            for j in range(self.in_layer.shape[0]):
-                #j = np.random.randint(self.in_layer.shape[0])
+            for k in range(self.in_layer.shape[0]):
+                j = np.random.randint(self.in_layer.shape[0])
                 win = self.Get_Win_Neuron(self.in_layer[j])
                 r = self.Radius(i)
                 index = self.Get_Neighborhood(win, r)
-                self.Update_W(index, i, self.in_layer[j])
+                self.Update_W(index, i, self.in_layer[j], r)
         self.Get_Result()
+        return self.w.reshape(self.w.shape[0]*self.w.shape[1], self.w.shape[2])[self.neuron.keys()], self.neuron
+        #self.Preprocessing()
+        '''
         self.res = self.Agglomeration()
         c=[]
         for i in range(len(self.label)):
@@ -168,6 +128,39 @@ class SOM():
                     c.append(j)
         print c
         return np.array(c)
+        '''
+    
+    def Preprocessing(self):
+        dev =[]
+        for key in self.neuron.keys():
+            mean_x = np.mean(self.in_layer[self.neuron[key]])
+            dev.append(np.linalg.norm(self.w[key/self.w.shape[0]][key%self.w.shape[1]]-mean_x, ord=1))
+        mean_dev, std_dev = np.mean(dev), np.std(dev)
+        j=0
+        for i in range(len(dev)):
+            if dev[i] > mean_dev + std_dev:
+                del self.neuron[self.neuron.keys()[i-j]]
+                j += 1
+
+        num=[]
+        for key in self.neuron.keys():
+            dis = []
+            for x in self.neuron[key]:
+                dis.append(np.linalg.norm(self.w[key/self.w.shape[0]][key%self.w.shape[1]]-x, ord=1))
+            mean_dis, std_dis = np.mean(dis), np.std(dis)
+            j=0
+            for i in range(len(dis)):
+                if dis[i] > mean_dis + std_dis:
+                    del self.neuron[key][i-j]
+                    j+=1
+            num.append(len(self.neuron[key]))
+        mean_num, std_num = np.mean(num), np.std(num)
+        print num, mean_num,std_num
+        for i in range(len(num)):
+            if num[i] < mean_num - std_num:
+                del self.neuron[self.neuron.keys()[i-j]]
+                j += 1
+        print self.neuron
 
     def Agglomeration(self):
         res = []
@@ -230,30 +223,54 @@ class SOM():
         #sys.exit()
 
 def main(argv):
-    dataset = np.loadtxt('./E.txt')
-    print dataset.shape, dataset[0]
-    #plt.scatter(dataset[:,0], dataset[:,1], c=dataset[:,2])
-    plt.scatter(dataset[:,0], dataset[:,1])
-    plt.title('testdataset')
-    plt.savefig('testdata')
+    #fname = 'C'
+    fname = argv[0]
+    size = int(argv[1])
+    iteration = int(argv[2])
+    dataset = np.loadtxt('./dataset/'+fname+'.txt')
+    print dataset.shape
+    plt.scatter(dataset[:,0], dataset[:,1], c=dataset[:,2])
+    #plt.scatter(dataset[:,0], dataset[:,1])
+    plt.title(fname+'dataset')
+    plt.savefig(fname+'-dataset')
     plt.close()
 
-    som = SOM(dataset[:, :2], (10,10), 10)
-    res = som.Train(0.9, 0.0001)
+    #som = SOM(dataset[:, :2], dataset[:, 2], (35,35), 30)
+    som = SOM(dataset[:, :2], dataset[:, 2], (size, size), iteration)
+    out, res = som.Train()
     print len(res)
+    color = [0, 'y', 'r', 'g', 'b', 'c', 'm', 'k']
+    for key in res.keys():
+        i, j = key / som.w.shape[0], key % som.w.shape[0]
+        plt.scatter(i, j, c=color[int(dataset[res[key][0], 2])])
+        #print dataset[res[key][0], 2]
+    plt.savefig(fname+'-som-2D')
+    plt.close()
+
+    '''
+    som1 = SOM(out, (1,3), 1000)
+    out1, res1 = som1.Train()
+    print res1
+
+    label = np.zeros(len(dataset))
+    for key in res1.keys():
+        for i in res1[key]:
+            key1 = res.keys()[i]
+            for j in res[key1]:
+                label[j] = key
+    print label
+
     
-    plt.scatter(dataset[:,0], dataset[:,1], c=res)
+    plt.scatter(dataset[:,0], dataset[:,1], c=label)
     plt.title('result')
     plt.savefig('res')
     plt.close()
 
-    plt.scatter(som.in_layer[:,0], som.in_layer[:,1], c=res)
+    plt.scatter(out[:,0], out[:,1], c=res.keys())
     plt.title('result')
     plt.savefig('res2')
     plt.close()
-    #'''
-
-
+    '''
 
 if __name__ == '__main__':
     print '\n ##--Start---- By Zhang Ruiwen ---', time.asctime( time.localtime(time.time()) ), '------\n' 
