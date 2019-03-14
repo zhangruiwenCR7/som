@@ -20,15 +20,18 @@ class SOM():
         self.l = 0 
         self.s = s
         
-    def Normaliza_Input(self, X):
+    def Normalize_Input(self, X):
         '''
+        print X[1]
         for i in range(X.shape[0]):
             t = np.linalg.norm(X[i])
             X[i] /= t
+            if i == 1:
+                print t, X[1]
         #'''
         return X
 
-    def Normaliza_W(self, w):
+    def Normalize_W(self, w):
         '''
         for i in range(w.shape[0]):
             for j in range(w.shape[1]):
@@ -65,11 +68,12 @@ class SOM():
         return int(self.w.shape[0]*(1-float(t)/self.m_iter)/2)+1
 
     def Learning_Rate(self, dis, time, r):
-        self.l = 0.6*np.exp(1/(time-self.m_iter))*np.exp(-float(dis)/r)
+        #self.l = 0.6*np.exp(1/(time-self.m_iter))*np.exp(-float(dis)/r)
+        self.l = 0.6*(1.0/(time+1))*np.exp(-float(dis)/r)
         return self.l
 
     def Get_Result(self):
-        self.w = self.Normaliza_W(self.w)
+        self.w = self.Normalize_W(self.w)
         self.neuron={}
         for i in range(self.in_layer.shape[0]):
             win = self.Get_Win_Neuron(self.in_layer[i])
@@ -82,29 +86,51 @@ class SOM():
                 self.neuron.fromkeys([key])
                 self.neuron[key]=[]
                 self.neuron[key].append(i)
+        print ' cluster result', self.neuron
         
     def Train(self, learning_rate=1, threshold=1):
-        self.in_layer = self.Normaliza_Input(self.in_layer)
+        self.in_layer = self.Normalize_Input(self.in_layer)
         for i in range(self.m_iter):
-            if i%50 == 0 and i >0: print 'iteration:', i
-            self.w = self.Normaliza_W(self.w)
+            if i%(self.m_iter/10) == 0 and i >=0: print ' iteration:', i
+            self.w = self.Normalize_W(self.w)
             for k in range(self.in_layer.shape[0]):
                 j = np.random.randint(self.in_layer.shape[0])
                 win = self.Get_Win_Neuron(self.in_layer[j])
                 r = self.Radius(i)
                 index = self.Get_Neighborhood(win, r)
                 self.Update_W(index, i, self.in_layer[j], r)
+                #print self.in_layer[j]
         self.Get_Result()
         return self.w.reshape(self.w.shape[0]*self.w.shape[1], self.w.shape[2])[self.neuron.keys()], self.neuron
 
-    def Draw_SOM_Grid(self, fname):
+    def Cluster(self):
+        print 'a'
+        
+
+    def Draw_SOM_Grid(self, f0, f1, fname):
+        '''
         for key in self.neuron.keys():
             i, j = key / self.w.shape[0], key % self.w.shape[0]
             plt.scatter(i, j, c=self.color[int(self.s[self.neuron[key][0]])])
+            #plt.scatter(i, j, c='b')
         plt.savefig(fname+'-som-2D')
         plt.close()
+        #'''
+        for key in self.neuron.keys():
+            i, j = key / self.w.shape[0], key % self.w.shape[0]
+            f0.scatter(i, j, c=self.color[int(self.s[self.neuron[key][0]])], marker='.')
+            f1.scatter(i, j, c='b', marker='.')
+        f0.set_title('som-2D')
+        f0.axis('off')
+        f1.set_title('som-2D-Nolable')
         print ' Image saved OK!'
 
+    def Draw_Normalize(self):
+        plt.scatter(self.in_layer[:,0], self.in_layer[:,1], c=np.zeros(len(self.s)))
+        plt.scatter(self.in_layer[:,0], self.in_layer[:,1], c=self.s)
+        plt.savefig('t')
+        plt.close()
+        print ' Image saved OK!'
 
 def main(argv):
     fname = argv[0]
@@ -113,16 +139,31 @@ def main(argv):
     dataset = np.loadtxt('./dataset/'+fname+'.txt')
     print ' The shape of dataset:',dataset.shape
     if dataset.shape[1]==2: dataset = np.hstack((dataset, np.zeros((dataset.shape[0], 1))))
+    
+    image =plt.figure(figsize=(10, 9.5))
+    ax = image.subplots(2,2)
+    #f.figsize=(9,8)
+    ax[0][0].scatter(dataset[:,0], dataset[:,1], c=dataset[:,2], marker='.')
+    ax[0][0].set_title('source')
+    ax[0][0].axis('off')
+    ax[1][0].set_title('cluster')
+    #ax[1][0].axis('off')
+    '''
+    plt.figure(figsize=(10, 9))
     plt.scatter(dataset[:,0], dataset[:,1], c=dataset[:,2])
-    #plt.scatter(dataset[:,0], dataset[:,1])
     plt.title(fname+'dataset')
     plt.savefig(fname+'-dataset')
     plt.close()
+    #'''
 
-    #som = SOM(dataset[:, :2], dataset[:, 2], (35,35), 30)
     som = SOM(dataset[:, :2], dataset[:, 2], (size, size), iteration)
     out, res = som.Train()
-    som.Draw_SOM_Grid(fname)
+    som.Draw_SOM_Grid(ax[0][1], ax[1][1], fname)
+    #som.Draw_Normalize()
+    
+
+    image.savefig(fname+'-dataset')
+    plt.close()
     print len(res)
 
 if __name__ == '__main__':
