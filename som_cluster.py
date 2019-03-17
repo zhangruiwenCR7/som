@@ -65,7 +65,7 @@ class SOM():
             self.w[index[i][0],index[i][1]] += self.Learning_Rate(index[i][2], time, r)*(X-self.w[index[i][0],index[i][1]])
 
     def Radius(self, t):
-        return int(self.w.shape[0]*(1-float(t)/self.m_iter)/2)+1
+        return min(int(self.w.shape[0]*(1-float(t)/self.m_iter)/2)+1, 20)
 
     def Learning_Rate(self, dis, time, r):
         #self.l = 0.6*np.exp(1/(time-self.m_iter))*np.exp(-float(dis)/r)
@@ -108,19 +108,11 @@ class SOM():
         
 
     def Draw_SOM_Grid(self, f0, f1, fname):
-        '''
-        for key in self.neuron.keys():
-            i, j = key / self.w.shape[0], key % self.w.shape[0]
-            plt.scatter(i, j, c=self.color[int(self.s[self.neuron[key][0]])])
-            #plt.scatter(i, j, c='b')
-        plt.savefig(fname+'-som-2D')
-        plt.close()
-        #'''
         for key in self.neuron.keys():
             i, j = key / self.w.shape[0], key % self.w.shape[0]
             f0.scatter(i, j, c=self.color[int(self.s[self.neuron[key][0]])], marker='.')
             f1.scatter(i, j, c='b', marker='.')
-        f0.set_title('som-2D')
+        f0.set_title('som-2D-'+fname)
         f0.axis('off')
         f1.set_title('som-2D-Nolable')
         print ' Image saved OK!'
@@ -134,35 +126,40 @@ class SOM():
 
 def main(argv):
     fname = argv[0]
-    size = int(argv[1])
-    iteration = int(argv[2])
+    size = 50
+    iteration = 20
+    
+    if len(argv) > 2: iteration = int(argv[2])
     dataset = np.loadtxt('./dataset/'+fname+'.txt')
     print ' The shape of dataset:',dataset.shape
     if dataset.shape[1]==2: dataset = np.hstack((dataset, np.zeros((dataset.shape[0], 1))))
-    
+    v=0
+    for i in range(dataset.shape[1]-1):
+        edge = max(dataset[:,i]) - min(dataset[:, i])
+        v += edge*edge
+        print edge
+    if len(argv) > 1: 
+        size = int(argv[1])
+    else:
+        size = max(min(100, int(dataset.shape[0]/50)*5), 10)
+    print 'The size of grid: ', size
+    som = SOM(dataset[:, :2], dataset[:, 2], (size, size), iteration)
+
     image =plt.figure(figsize=(10, 9.5))
     ax = image.subplots(2,2)
-    #f.figsize=(9,8)
-    ax[0][0].scatter(dataset[:,0], dataset[:,1], c=dataset[:,2], marker='.')
+    for i in range(dataset.shape[0]):
+        ax[0][0].scatter(dataset[i,0], dataset[i,1], c=som.color[int(dataset[i,2])], marker='.')
     ax[0][0].set_title('source')
     ax[0][0].axis('off')
     ax[1][0].set_title('cluster')
     #ax[1][0].axis('off')
-    '''
-    plt.figure(figsize=(10, 9))
-    plt.scatter(dataset[:,0], dataset[:,1], c=dataset[:,2])
-    plt.title(fname+'dataset')
-    plt.savefig(fname+'-dataset')
-    plt.close()
-    #'''
 
-    som = SOM(dataset[:, :2], dataset[:, 2], (size, size), iteration)
     out, res = som.Train()
-    som.Draw_SOM_Grid(ax[0][1], ax[1][1], fname)
+    som.Draw_SOM_Grid(ax[0][1], ax[1][1], str(len(res)))
     #som.Draw_Normalize()
     
 
-    image.savefig(fname+'-dataset')
+    image.savefig(fname+'-dataset-'+str(size))
     plt.close()
     print len(res)
 
