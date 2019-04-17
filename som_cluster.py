@@ -1,11 +1,10 @@
 #!/usr/bin/python3
 #--- coding:utf-8
 
-import time
-import sys, os
+import time, sys, os
+import numpy as np
 import matplotlib
 matplotlib.use('Agg')
-import numpy as np
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
@@ -13,7 +12,8 @@ class SOM():
     def __init__(self, in_layer, s, out_size=(3,3), m_iter=1000):
         self.in_layer = in_layer.copy()
         self.m_iter = m_iter
-        self.w = np.random.rand(out_size[0], out_size[1], self.in_layer.shape[1])
+        a,b = np.min(self.in_layer), np.max(self.in_layer)
+        self.w = (b-a)*np.random.rand(out_size[0], out_size[1], self.in_layer.shape[1])+a
         self.color = ['y', 'r', 'g', 'b', 'c', 'm', 'k', 'pink', 'dark', 'orange', 'tan', 'gold']
         self.label = []
         self.res =[]
@@ -22,20 +22,24 @@ class SOM():
         self.s = s
         self.som_r = int(self.w.shape[0]/3)
         self.som_r_square = self.som_r**2
+        self.D_list = []
+    
+    def Init_W(self):
+        for i in range(self.w.shape[0]):
+            for j in range(self.w.shape[1]):
+                k = np.random.randint(self.in_layer.shape[0])
+                self.w[i][j]=self.in_layer[k]
         
     def Normalize_Input(self, X):
-        '''
-        print X[1]
+        #'''
         for i in range(X.shape[0]):
             t = np.linalg.norm(X[i])
             X[i] /= t
-            if i == 1:
-                print t, X[1]
         #'''
         return X
 
     def Normalize_W(self, w):
-        '''
+        #'''
         for i in range(w.shape[0]):
             for j in range(w.shape[1]):
                 t = np.linalg.norm(w[i,j])
@@ -45,13 +49,20 @@ class SOM():
     
     def Get_Win_Neuron(self, x):
         max_dis=float('inf')
+        min_dis=-float('inf')
         for i in range(self.w.shape[0]):
             for j in range(self.w.shape[1]):
-                #dis = x.dot(self.w[i,j]) #余弦距离
+                #'''
+                dis = x.dot(self.w[i,j]) #余弦距离
+                if dis > min_dis:
+                    min_dis = dis
+                    win_index = (i,j,dis)
+                '''
                 dis = np.linalg.norm(x-self.w[i,j])#欧式距离
                 if dis < max_dis:
                     max_dis = dis
-                    win_index = (i,j)
+                    win_index = (i,j,dis)
+                #'''
         return win_index
 
     def Get_Neighborhood(self, win, radius):
@@ -79,16 +90,19 @@ class SOM():
     def Train(self, fpath):
         self.in_layer = self.Normalize_Input(self.in_layer)
         for i in range(self.m_iter):
-            p = int(45*i/self.m_iter)+1
+            p = int(46*i/self.m_iter)+1
             print(' P|'+'*'*p+' '*(46-p)+'| '+str(i)+'/'+str(self.m_iter), end='\r')
             self.w = self.Normalize_W(self.w)
             r = self.Radius(i)
             self.l = self.alpha(i)
+            D = 0
             for k in range(self.in_layer.shape[0]):
                 j = np.random.randint(self.in_layer.shape[0])
                 win = self.Get_Win_Neuron(self.in_layer[j])
                 index = self.Get_Neighborhood(win, self.som_r)
                 self.Update_W(index, self.in_layer[j], r)
+                D += win[2]
+            self.D_list.append(D)
         self.Get_Result()
         print(' P|'+'*'*46+'| '+str(self.m_iter)+'/'+str(self.m_iter))
         return self.w.reshape(self.w.shape[0]*self.w.shape[1], self.w.shape[2])[list(self.neuron.keys())], self.neuron
@@ -104,10 +118,28 @@ class SOM():
                 self.neuron[key].append(i)
             else:
                 self.neuron.fromkeys([key])
-                self.neuron[key]=[]
-                self.neuron[key].append(i)
+                self.neuron[key]=[i]
+
     def Cluster(self):
         print('a')
+    
+    def Draw_Criterion(self):
+        img,ax = plt.subplots(2,2,figsize=(10,7))
+        t = np.arange(self.m_iter)
+        y = np.array(self.D_list)
+        x = self.D_list.index(max(y))
+        print(x)
+        ax[0][0].plot(t, y)
+        ax[0][0].axhline(self.in_layer.shape[0], color='r')
+        ax[0][1].axhline(self.in_layer.shape[0], color='r')
+        ax[1][0].axhline(self.in_layer.shape[0], color='r')
+        ax[1][1].axhline(self.in_layer.shape[0], color='r')
+        ax[0][0].scatter(x, y[x], c='r', marker='*')
+        ax[0][1].plot(t[20:50], y[20:50])
+        ax[1][0].plot(t[50:100], y[50:100])
+        ax[1][1].plot(t[100:self.m_iter], y[100:self.m_iter])
+        img.savefig('D')
+        plt.close()
 
     def Draw_Process(self, fpath):
         if not os.path.exists('./neuron-som-'+fpath): os.makedirs('./neuron-som-'+fpath)
@@ -153,14 +185,16 @@ def main(argv):
     else:             size = max(min(100, int(np.sqrt(dataset.shape[0])*2)), 10)
 
     if len(argv) > 3: iteration = int(argv[3])
-    else:             iteration = 100
+    else:             iteration = 50
 
     print(' Dataset:', dataset.shape, '| Grid:', size, '| Iteration:', iteration)
 
     if dataset.shape[1]==dimension: dataset = np.hstack((dataset, np.zeros((dataset.shape[0], 1))))
     
     som = SOM(dataset[:, :dimension], dataset[:, -1], (size, size), iteration)
+    #som.Init_W()
     out, res = som.Train(fname)
+    som.Draw_Criterion()
     
     fig =plt.figure(figsize=(10, 9.5))
     ax12 = fig.add_subplot(222)
@@ -179,7 +213,7 @@ def main(argv):
     elif dimension==3:
         ax11 = fig.add_subplot(221, projection='3d')
         ax21 = fig.add_subplot(223, projection='3d')
-        #ax11.view_init(elev=5,azim=75)
+        ax11.view_init(azim=45)
         for i in range(dataset.shape[0]):
             ax11.scatter(dataset[i,0], dataset[i,1], dataset[i,2], c=som.color[int(dataset[i,3])], marker='.')
         for key in som.neuron.keys():
