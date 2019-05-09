@@ -7,7 +7,7 @@ import matplotlib
 matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 
-class Kmeans():
+class KMeans():
     def __init__(self, n_clusters, max_iter = 600, tol = 0.0001):
         self.n_clusters = n_clusters
         self.max_iter = max_iter
@@ -51,6 +51,7 @@ class SpectralClustering():
         W = np.zeros((len(X), len(X)))
         for i in range(len(X)):
             index = np.argpartition(S[i], self.knn)[:self.knn+1]
+            #print(index)
             temp = np.exp(-S[i,index]/self.sigma)
             W[i, index]=temp
         return W
@@ -80,11 +81,12 @@ def main(argv):
     d = int(argv[1])
     n = int(argv[2])
     dataset = np.loadtxt('./dataset/'+fname+'.txt')
+    #'''
     SC = SpectralClustering(n,10)
     labels = SC.fit(dataset[:,:d])
     '''
-    #labels = SC(n).fit(dataset[:,:d]).labels_
-    '''
+    labels = SC(n, n_neighbors=2).fit(dataset[:,:d]).labels_
+    #'''
     plt.scatter(dataset[:,0], dataset[:,1], c=labels)
     plt.savefig(fname+'-spectral')
 
