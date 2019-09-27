@@ -1,0 +1,22 @@
+#!/bin/bash
+./cluster.py A 
+./cluster.py B 
+./cluster.py C 
+./cluster.py circle 
+./cluster.py cth 
+./cluster.py D 
+./cluster.py db 
+./cluster.py db3 
+./cluster.py E 
+./cluster.py fc1 
+./cluster.py five_cluster 
+./cluster.py jain 
+./cluster.py ls 
+./cluster.py line 
+./cluster.py sk 
+./cluster.py sn 
+./cluster.py spiral 
+./cluster.py three_cluster 
+./cluster.py two_cluster 
+./cluster.py ThreeCircles 
+./cluster.py TwoMoons 

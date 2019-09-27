@@ -278,7 +278,7 @@ class SOM():
             cnt+=1
 
     def Cluster(self):
-        self.Preprocess()
+        #self.Preprocess()
         self.sigma = 1.
         self.fit(list(self.neuron.keys()))
         self.Get_Labels()
@@ -363,7 +363,7 @@ class SOM():
 
 def main(argv):
     fname = argv[0]
-    dataset = np.loadtxt('./dataset/'+fname+'.txt')
+    dataset = np.loadtxt('../04dataset/'+fname+'.txt')
 
     if len(argv) > 1: n_cluster = int(argv[1])
     else:             dimension = 2
@@ -377,7 +377,7 @@ def main(argv):
     if len(argv) > 4: size = int(argv[4])
     else:             
         #size = max(min(100, int(np.sqrt(dataset.shape[0])*2)), 10)
-        size = int(np.sqrt(dataset.shape[0])*2)
+        size = int(np.sqrt(dataset.shape[0]))
 
     print(' Dataset:', dataset.shape, '| Grid:', size, '| Iteration:', iteration)
     

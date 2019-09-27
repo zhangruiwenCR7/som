@@ -2,12 +2,14 @@
 #--- coding:utf-8
 
 import time, sys, os
+from IPython import embed
 import numpy as np
+from sklearn.neighbors import KDTree
 import matplotlib
 matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 
-class KMeans():
+class Kmeans():
     def __init__(self, n_clusters, max_iter = 600, tol = 0.0001):
         self.n_clusters = n_clusters
         self.max_iter = max_iter
@@ -48,13 +50,38 @@ class SpectralClustering():
         return S
 
     def Get_W_KNN(self, X, S):
-        W = np.zeros((len(X), len(X)))
+        NaN_Edge = np.zeros((len(X), len(X)))
+        #'''
+        tree = KDTree(X, leaf_size=2)
+        r=1
+        flag=0
+        NaN_Num = np.zeros(len(X))
+        cnt_last = 0
+        rep=-1
+        
+        while flag==0:
+            for i in range(len(X)):
+                ind = tree.query([X[i]], r, return_distance=False)[0][-1]
+                temp = X[ind]
+                ind_l = tree.query([temp], r, return_distance=False)[0]
+                if (i in ind_l) and (NaN_Edge[i,ind]+NaN_Edge[ind,i]==0) and (i != ind):
+                    temp = np.exp(-S[i,ind]/self.sigma)
+                    NaN_Edge[i,ind]=NaN_Edge[ind,i]=temp
+                    NaN_Num[i] += 1
+                    NaN_Num[ind] += 1
+            cnt = np.argwhere(NaN_Num==0).shape[0]
+            if cnt == cnt_last: rep += 1
+            else:               cnt_last = cnt
+            if cnt == 0 or rep >= np.sqrt(r-rep): flag = 1
+            r += 1
+        '''
         for i in range(len(X)):
             index = np.argpartition(S[i], self.knn)[:self.knn+1]
             #print(index)
             temp = np.exp(-S[i,index]/self.sigma)
-            W[i, index]=temp
-        return W
+            NaN_Edge[i, index]=temp
+        #'''
+        return NaN_Edge
 
     def Get_D_L(self, W):
         D = np.diag(W.sum(axis=1))
@@ -70,9 +97,15 @@ class SpectralClustering():
         w, v = np.linalg.eig(L)
         index = np.argpartition(w, self.n_clusters)[:self.n_clusters]
         vec = v.real[:, index]
+        '''
         temp = np.linalg.norm(vec, axis=1)
         temp = np.repeat(np.transpose([temp]), self.n_clusters, axis=1)
         vec = vec / temp
+        '''
+        print(vec)
+        #embed(header='First time')
+        from sklearn.cluster import KMeans
+        return KMeans(self.n_clusters).fit(vec).labels_+1
         return Kmeans(self.n_clusters).fit(vec)
     
 from sklearn.cluster import SpectralClustering as SC
@@ -82,7 +115,7 @@ def main(argv):
     n = int(argv[2])
     dataset = np.loadtxt('./dataset/'+fname+'.txt')
     #'''
-    SC = SpectralClustering(n,10)
+    SC = SpectralClustering(n, 4)
     labels = SC.fit(dataset[:,:d])
     '''
     labels = SC(n, n_neighbors=2).fit(dataset[:,:d]).labels_
